@@ -7,15 +7,16 @@
 
 #include "Camera.h"
 #include "Ray.h"
+#include "Scene.h"
 
 class Renderer
 {
 public:
 	Renderer() = default;
-	void Render(const Camera &camera);
+	void Render(Scene* scene, const Camera &camera);
 	void OnResize(uint32_t width, uint32_t height);
 	std::shared_ptr<Walnut::Image> GetFinalImage() const { return m_Image; };
-	glm::vec4 TraceRay(const Ray& coord);
+	glm::vec4 TraceRay(Scene* scene, const Ray& coord);
 
 private:
 	float AspectRatio = 1.0f;
