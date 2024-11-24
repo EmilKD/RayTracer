@@ -28,21 +28,16 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 	AspectRatio = (float)width / (float)height;
 }
 
-glm::vec4 Renderer::PerPixel(glm::vec2 coord)
+glm::vec4 Renderer::TraceRay(const Ray& ray)
 {
-	//uint8_t r = (uint8_t)(coord.x * 255.0f);
-	//uint8_t g = (uint8_t)(coord.y * 255.0f);
-
-	glm::vec3 RayOrigin = glm::vec3(0.0f, 0.0f, 1.0f);
-	glm::vec3 RayDirection = glm::vec3(coord.x, coord.y, -1.0f);
 	float SphereRadius = 0.5f;
 	glm::vec3 SphereOrigin = glm::vec3(0.0f, 0.0f, 0.0f);
 	glm::vec3 LightDir{ -1.0f, -1.0f, -1.0f };
 
 	// |d|t^2+2(a-c).d.t+|a-c|-r^2=0
-	float a = glm::dot(RayDirection, RayDirection);
-	float b = 2.0f * (glm::dot(RayOrigin, RayDirection) - glm::dot(SphereOrigin, RayDirection));
-	float c = glm::dot(RayOrigin - SphereOrigin, RayOrigin - SphereOrigin) - SphereRadius * SphereRadius;
+	float a = glm::dot(ray.Direction, ray.Direction);
+	float b = 2.0f * (glm::dot(ray.Origin, ray.Direction) - glm::dot(SphereOrigin, ray.Direction));
+	float c = glm::dot(ray.Origin - SphereOrigin, ray.Origin - SphereOrigin) - SphereRadius * SphereRadius;
 
 	float discriminant = b * b - 4.0f * a * c;
 
@@ -51,11 +46,11 @@ glm::vec4 Renderer::PerPixel(glm::vec2 coord)
 		float t0 = (-b + glm::sqrt(discriminant)) / (2.0 * a);
 		float t1 = (-b - glm::sqrt(discriminant)) / (2.0 * a);
 
-		glm::vec3 SphereNormal = glm::normalize(RayOrigin + RayDirection * t1) * 0.5f + 0.5f;
+		glm::vec3 SphereNormal = glm::normalize(ray.Origin + ray.Direction * t1);
 
 		float Specular = glm::max(glm::dot(SphereNormal, -LightDir), 0.0f);
 
-		glm::vec4 color = glm::vec4(1*Specular, 0, 0, 1);
+		glm::vec4 color = glm::vec4(Specular, 0, 0, 1);
 
 		return color;
 	}
@@ -64,17 +59,18 @@ glm::vec4 Renderer::PerPixel(glm::vec2 coord)
 
 }
 
-void Renderer::Render()
+void Renderer::Render(const Camera& camera)
 {
+	Ray ray;
+	ray.Origin = camera.GetPosition();
+	
 	for (uint32_t y = 0; y < m_Image->GetHeight(); y++)
 	{
 		for (uint32_t x = 0; x < m_Image->GetWidth(); x++)
 		{
-			glm::vec2 coord = { (float)x / (float)m_Image->GetWidth(), (float)y / (float)m_Image->GetHeight() };
-			coord = 2.0f * coord - 1.0f;
-			coord.y = coord.y / AspectRatio;
-
-			glm::vec4 color = PerPixel(coord);
+			ray.Direction = camera.GetRayDirections()[x + y * m_Image->GetWidth()];
+			
+			glm::vec4 color = TraceRay(ray);
 			color = glm::clamp(color, glm::vec4(0.0f), glm::vec4(1.0f));
 			m_ImageData[x + y * m_Image->GetWidth()] = utils::ConvertRGBA(color);
 		}
