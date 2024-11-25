@@ -23,5 +23,3 @@ This project is designed for:
 3. **Ray-Sphere Intersection**: Each ray is tested for intersections with the spheres in the scene, and the closest intersection determines the pixel's color.
 4. **Lighting Calculation**: Using the object's surface normals and a fixed directional light, the renderer calculates shading for each pixel.
 5. **Image Output**: The final pixel colors are written to an image buffer, which is displayed to the screen.
-
-This project is an excellent starting point for exploring ray tracing and can be extended with additional features to support more realistic rendering techniques.
