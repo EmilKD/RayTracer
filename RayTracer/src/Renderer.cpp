@@ -45,19 +45,22 @@ glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
 
 		if (hit.HitDistance < 0.0f)
 		{
+			color += ActiveScene->SkyColor * c;
 			break;
 		}
 
 		const Sphere& sphere = ActiveScene->Spheres.at(hit.ObjectIndex);
-		SphereColor = sphere.Albedo;
+		const Material& mat = ActiveScene->Materials.at(sphere.MatIdx);
+
+		SphereColor = mat.Albedo;
 		Specular = glm::max(glm::dot(hit.WorldNormal, -LightDir), 0.0f);
 		SphereColor *= Specular;
 		color += SphereColor * c;
 		
 		ray.Origin = hit.WorldPosition + hit.WorldNormal * 0.0001f;
-		ray.Direction = glm::reflect(ray.Direction, hit.WorldNormal);
+		ray.Direction = glm::reflect(ray.Direction, hit.WorldNormal + mat.Roughness * Walnut::Random::Vec3(-0.5f, 0.5f));
 
-		c *= 0.7;
+		c *= 0.5;
 	}
 	
 	return glm::vec4(color, 1.0f);
