@@ -18,16 +18,19 @@ public:
 	ExampleLayer() : m_Camera(45.0f, 0.1f, 100.0f)
 	{
 		m_Scene.Materials.push_back(Material{ {0.5f, 0.5f, 0.5f} });
-		m_Scene.Materials.push_back(Material{ {0.0f, 0.37f, 1.0f} });
+		m_Scene.Materials.push_back(Material{ {0.0f, 0.17f, 0.6f} });
 		m_Scene.Materials.push_back(Material{ {1.0f, 0.7f, 0.0f} });
 
-		m_Scene.Spheres.push_back(Sphere{ {0.0f, -100.0f, 0.0f}, 100.0f,  1});
-		m_Scene.Spheres.push_back(Sphere{ {0.0f, 0.7f, 0.0f}, 0.5f,  2});
+		m_Scene.Spheres.push_back(Sphere{ {0.0f, -100.0f, -4.0f}, 100.0f,  1});
+		m_Scene.Spheres.push_back(Sphere{ {0.0f, 0.3f, 3.0f}, 0.5f,  2});
 	}
 
 	virtual void OnUpdate(float ts) override 
 	{
-		m_Camera.OnUpdate(ts);
+		if (m_Camera.OnUpdate(ts)) 
+		{
+			m_renderer.ResetSampleCount();
+		}
 	}
 
 	virtual void OnUIRender() override
@@ -39,6 +42,7 @@ public:
 		{
 			render();
 		}
+		ImGui::Checkbox("Accumulate", &m_renderer.GetSettings().Accumulate);
 		ImGui::End();
 
 		// Creating Object Settings GUI
@@ -75,7 +79,7 @@ public:
 		ViewportWidth = ImGui::GetContentRegionAvail().x;
 		ViewportHeight = ImGui::GetContentRegionAvail().y;
 
-		auto image = m_renderer.GetFinalImage();
+		const auto image = m_renderer.GetFinalImage();
 		if (image)
 			ImGui::Image(image->GetDescriptorSet(), { (float)image->GetWidth(), (float)image->GetHeight() }, ImVec2(0, 1), ImVec2(1, 0));
 

@@ -23,7 +23,7 @@ struct Sphere
  
 struct Scene
 {
-	glm::vec3 SkyColor{ 0.0f, 0.7f, 0.8 };
+	glm::vec3 SkyColor{ 0.5f, 0.7f, 0.95f };
 	float Gravity{ -9.83 };
 	std::vector<Sphere> Spheres;
 	std::vector<Material> Materials;

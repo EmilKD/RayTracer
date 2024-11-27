@@ -4,18 +4,29 @@
 #include <memory>
 #include "Walnut/Random.h"
 #include "glm/glm.hpp"
+#include<iostream>
 
 #include "Camera.h"
 #include "Ray.h"
 #include "Scene.h"
 
+
 class Renderer
 {
+public:
+	struct Settings
+	{
+		bool Accumulate{ true };
+		int MaxSample{ 1024 };
+	};
+
 public:
 	Renderer() = default;
 	void Render(Scene* scene, const Camera &camera);
 	void OnResize(uint32_t width, uint32_t height);
 	std::shared_ptr<Walnut::Image> GetFinalImage() const { return m_Image; };
+	Settings& GetSettings() { return settings; }
+	void ResetSampleCount() { SampleCount = 1; }
 
 private:
 	struct RayHitResult
@@ -34,9 +45,13 @@ private:
 private:
 	float AspectRatio = 1.0f;
 	std::shared_ptr<Walnut::Image> m_Image;
-	uint32_t* m_ImageData = nullptr;
+	uint32_t* ImageData = nullptr;
+	glm::vec4* AccumulatedData{ nullptr };
 
 	const Scene* ActiveScene = nullptr;
 	const Camera* ActiveCamera = nullptr;
+
+	Settings settings;
+	int SampleCount{ 1 };
 };
 

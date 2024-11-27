@@ -16,6 +16,9 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 {
 	if (m_Image)
 	{
+		if (m_Image->GetWidth() == width && m_Image->GetHeight() == height)
+			return;
+
 		m_Image->Resize(width, height);
 	}
 	else
@@ -23,8 +26,10 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 		m_Image = std::make_shared<Walnut::Image>(width, height, Walnut::ImageFormat::RGBA);
 	}
 
-	delete[] m_ImageData;
-	m_ImageData = new uint32_t[width * height];
+	delete[] ImageData;
+	ImageData = new uint32_t[width * height];
+	delete[] AccumulatedData;
+	AccumulatedData = new glm::vec4[width * height];
 	AspectRatio = (float)width / (float)height;
 }
 
@@ -36,7 +41,7 @@ glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
 	ray.Origin = ActiveCamera->GetPosition();
 	ray.Direction = ActiveCamera->GetRayDirections()[x + y * m_Image->GetWidth()];
 
-	int bounces = 2;
+	int bounces = 5;
 	float Specular{ 0.0f }, c{ 1.0f };
 
 	for (size_t i = 0; i < bounces; i++)
@@ -134,20 +139,35 @@ Renderer::RayHitResult Renderer::Miss(const Ray& ray)
 
 void Renderer::Render(Scene* scene, const Camera& camera)
 {
-	glm::vec4 color{ 0.0f };
+	glm::vec4 color{ 0.0f }, AccumulatedColor;
 
 	ActiveScene = scene;
 	ActiveCamera = &camera;
+
+
+	if (SampleCount == 1)
+		memset(AccumulatedData, 0, m_Image->GetWidth() * m_Image->GetHeight() * sizeof(glm::vec4));
 
 	for (uint32_t y = 0; y < m_Image->GetHeight(); y++)
 	{
 		for (uint32_t x = 0; x < m_Image->GetWidth(); x++)
 		{
-			color = OnPixel(x, y);
-			color = glm::clamp(color, glm::vec4(0.0f), glm::vec4(1.0f));
-			m_ImageData[x + y * m_Image->GetWidth()] = utils::ConvertRGBA(color);
+			AccumulatedData[x + y * m_Image->GetWidth()] += OnPixel(x, y);
+			AccumulatedColor = AccumulatedData[x + y * m_Image->GetWidth()] / (float)(SampleCount);
+
+			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
+			ImageData[x + y * m_Image->GetWidth()] = utils::ConvertRGBA(AccumulatedColor);
 		}
 	}
-	m_Image->SetData(m_ImageData);
+	m_Image->SetData(ImageData);
+
+	if (settings.Accumulate)
+	{
+		SampleCount++;
+	}
+	else
+	{
+		SampleCount = 1;
+	}
 }
 
