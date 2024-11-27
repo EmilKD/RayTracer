@@ -17,12 +17,14 @@ class ExampleLayer : public Walnut::Layer
 public:
 	ExampleLayer() : m_Camera(45.0f, 0.1f, 100.0f)
 	{
-		m_Scene.Materials.push_back(Material{ {0.5f, 0.5f, 0.5f} });
-		m_Scene.Materials.push_back(Material{ {0.0f, 0.17f, 0.6f} });
-		m_Scene.Materials.push_back(Material{ {1.0f, 0.7f, 0.0f} });
+		m_Scene.Materials.push_back(Material{ {0.5f, 0.5f, 0.5f}, 0.5f }); // Default Mat
+		m_Scene.Materials.push_back(Material{ {0.2f, 0.2f, 0.2f}, 0.1f }); 
+		m_Scene.Materials.push_back(Material{ {1.0f, 0.7f, 0.0f}, 0.06 }); 
+		m_Scene.Materials.push_back(Material{ {1.0f, 0.35f, 0.0f} , 0.0f, 0.0f, {1.0f, 0.8f, 0.0f}, 20.0f}); // Emissive Material
 
 		m_Scene.Spheres.push_back(Sphere{ {0.0f, -100.0f, -4.0f}, 100.0f,  1});
 		m_Scene.Spheres.push_back(Sphere{ {0.0f, 0.3f, 3.0f}, 0.5f,  2});
+		m_Scene.Spheres.push_back(Sphere{ {1.7f, 1.1f, 1.8f}, 0.4f,  3 });
 	}
 
 	virtual void OnUpdate(float ts) override 
@@ -69,9 +71,12 @@ public:
 			ImGui::ColorEdit3("Albedo", glm::value_ptr(mat.Albedo));
 			ImGui::DragFloat("Roughness", &mat.Roughness, 0.01, 0.0f, 1.0f);
 			ImGui::DragFloat("Metallness", &mat.Metallness, 0.01, 0.0f, 1.0f);
+			ImGui::ColorEdit3("Emission Color", glm::value_ptr(mat.EmissionColor));
+			ImGui::DragFloat("Emission Strength", &mat.EmissionValue, 0.1f, 0.0f, 100.0f);
 			ImGui::Separator();
 			ImGui::PopID();
 		}
+		ImGui::ColorEdit3("Sky Material", glm::value_ptr(m_Scene.SkyColor));
 		ImGui::End();
 
 		ImGui::Begin("Viewport");

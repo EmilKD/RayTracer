@@ -5,9 +5,13 @@
 
 struct Material
 {
-	glm::vec3 Albedo{ glm::vec3(1.0f) };
+	glm::vec3 Albedo{ 1.0f };
 	float Roughness{1.0f};
 	float Metallness;
+	glm::vec3 EmissionColor{ 0.0f };
+	float EmissionValue{ 0.0f };
+
+	glm::vec3 GetEmissive() const { return EmissionColor * EmissionValue; }
 };
 
 struct Sphere
@@ -23,7 +27,7 @@ struct Sphere
  
 struct Scene
 {
-	glm::vec3 SkyColor{ 0.5f, 0.7f, 0.95f };
+	glm::vec3 SkyColor{ 0.275f, 0.392f, 0.510f };
 	float Gravity{ -9.83 };
 	std::vector<Sphere> Spheres;
 	std::vector<Material> Materials;

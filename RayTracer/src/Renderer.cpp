@@ -10,6 +10,11 @@ namespace utils {
 
 		return a << 24 | b << 16 | g << 8 | r;
 	}
+
+	static glm::vec4 GammaCorrect(const glm::vec4& color) 
+	{
+		return glm::sqrt(color);
+	}
 }
 
 void Renderer::OnResize(uint32_t width, uint32_t height)
@@ -43,14 +48,14 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 
 glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
 {
-	glm::vec3 LightDir = glm::normalize(glm::vec3(-1.0f)), SphereColor{ 0.0f }, color{0.0f};
+	glm::vec3 LightDir = glm::normalize(glm::vec3(-1.0f)), SphereColor{ 0.0f }, Light{0.0f}, Throughput{ 1.0f };
 
 	Ray ray;
 	ray.Origin = ActiveCamera->GetPosition();
 	ray.Direction = ActiveCamera->GetRayDirections()[x + y * m_Image->GetWidth()];
 
 	int bounces = 5;
-	float Specular{ 0.0f }, c{ 1.0f };
+	float Specular{ 0.0f };
 
 	for (size_t i = 0; i < bounces; i++)
 	{
@@ -58,25 +63,27 @@ glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
 
 		if (hit.HitDistance < 0.0f)
 		{
-			color += ActiveScene->SkyColor * c;
+			Light += ActiveScene->SkyColor * Throughput;
 			break;
 		}
 
 		const Sphere& sphere = ActiveScene->Spheres.at(hit.ObjectIndex);
 		const Material& mat = ActiveScene->Materials.at(sphere.MatIdx);
 
-		SphereColor = mat.Albedo;
-		Specular = glm::max(glm::dot(hit.WorldNormal, -LightDir), 0.0f);
-		SphereColor *= Specular;
-		color += SphereColor * c;
-		
-		ray.Origin = hit.WorldPosition + hit.WorldNormal * 0.0001f;
-		ray.Direction = glm::reflect(ray.Direction, hit.WorldNormal + mat.Roughness * Walnut::Random::Vec3(-0.5f, 0.5f));
+		//SphereColor = mat.Albedo;
+		//Specular = glm::max(glm::dot(hit.WorldNormal, -LightDir), 0.0f);
+		//SphereColor *= Specular;
+		//Light += SphereColor * Throughput;
+		Throughput *= mat.Albedo;
+		Light += mat.GetEmissive() * mat.Albedo;
 
-		c *= 0.5;
+		ray.Origin = hit.WorldPosition + hit.WorldNormal * 0.0001f;
+		//ray.Direction = glm::reflect(ray.Direction, hit.WorldNormal + mat.Roughness * Walnut::Random::Vec3(-0.5f, 0.5f));
+		ray.Direction = glm::normalize(Walnut::Random::InUnitSphere());
+		
 	}
 	
-	return glm::vec4(color, 1.0f);
+	return glm::vec4(Light, 1.0f);
 }
 
 Renderer::RayHitResult Renderer::TraceRay(const Ray& ray)
@@ -169,15 +176,6 @@ void Renderer::Render(Scene* scene, const Camera& camera)
 			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
 			ImageData[idx] = utils::ConvertRGBA(AccumulatedColor);
 		}
-		/*std::for_each(std::execution::par_unseq, ItrWidth.begin(), ItrWidth.end(), [this, &y](uint32_t x)
-		{
-			const int& idx = x + y * m_Image->GetWidth();
-			AccumulatedData[idx] += OnPixel(x, y);
-			glm::vec4 AccumulatedColor = AccumulatedData[idx] / (float)(SampleCount);
-
-			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
-			ImageData[idx] = utils::ConvertRGBA(AccumulatedColor);
-		});*/
 	});
 #else
 	for (uint32_t y = 0; y < m_Image->GetHeight(); y++)
