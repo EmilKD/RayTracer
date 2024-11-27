@@ -28,21 +28,56 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 	AspectRatio = (float)width / (float)height;
 }
 
-glm::vec4 Renderer::TraceRay(Scene* scene, const Ray& ray)
+glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
+{
+	glm::vec3 LightDir = glm::normalize(glm::vec3(-1.0f)), SphereColor{ 0.0f }, color{0.0f};
+
+	Ray ray;
+	ray.Origin = ActiveCamera->GetPosition();
+	ray.Direction = ActiveCamera->GetRayDirections()[x + y * m_Image->GetWidth()];
+
+	int bounces = 2;
+	float Specular{ 0.0f }, c{ 1.0f };
+
+	for (size_t i = 0; i < bounces; i++)
+	{
+		Renderer::RayHitResult hit = TraceRay(ray);
+
+		if (hit.HitDistance < 0.0f)
+		{
+			break;
+		}
+
+		const Sphere& sphere = ActiveScene->Spheres.at(hit.ObjectIndex);
+		SphereColor = sphere.Albedo;
+		Specular = glm::max(glm::dot(hit.WorldNormal, -LightDir), 0.0f);
+		SphereColor *= Specular;
+		color += SphereColor * c;
+		
+		ray.Origin = hit.WorldPosition + hit.WorldNormal * 0.0001f;
+		ray.Direction = glm::reflect(ray.Direction, hit.WorldNormal);
+
+		c *= 0.7;
+	}
+	
+	return glm::vec4(color, 1.0f);
+}
+
+Renderer::RayHitResult Renderer::TraceRay(const Ray& ray)
 {
 	float a{ 0.0f }, b{ 0.0f }, c{ 0.0f }, discriminant{ 0.0f }, t1{ 0.0f };
-	glm::vec3 LightDir{ -1.0f }, RayOrigin{ 0.0f }, SphereNormal{ 0.0f };
+	glm::vec3 RayOrigin{ 0.0f };
 	float ShortestDistance{ std::numeric_limits<float>::max() };
-	Sphere* sphere{ nullptr }, *ClosestSphere{ nullptr };
+	int ClosestId{ -1 };
 
-	if (scene->Spheres.size() == 0)
+	if (ActiveScene->Spheres.size() == 0)
 	{
-		return glm::vec4(0, 0, 0, 1);
+		return Miss(ray);
 	}
 
-	for (int i = 0; i < scene->Spheres.size(); i++)
+	for (int i = 0; i < ActiveScene->Spheres.size(); i++)
 	{
-		sphere = &scene->Spheres.at(i);
+		const Sphere* sphere = &ActiveScene->Spheres[i];
 
 		RayOrigin = ray.Origin - sphere->Position;
 		// |d|t^2+2(a-c).d.t+|a-c|-r^2=0
@@ -56,40 +91,60 @@ glm::vec4 Renderer::TraceRay(Scene* scene, const Ray& ray)
 
 		t1 = (-b - glm::sqrt(discriminant)) / (2.0 * a);
 
-		if (t1 < ShortestDistance)
+		if (t1 < ShortestDistance && t1 > 0)
 		{
 			ShortestDistance = t1;
-			ClosestSphere = sphere;
+			ClosestId = i;
 		}
 	}
-	
-	if (ClosestSphere == nullptr)
-		return glm::vec4(0, 0, 0, 1);
-	else
-	{
-		RayOrigin = ray.Origin - ClosestSphere->Position;
-		SphereNormal = glm::normalize(RayOrigin + ray.Direction * ShortestDistance);
-		float Specular = glm::max(glm::dot(SphereNormal, -LightDir), 0.0f);
-		return glm::vec4(ClosestSphere->Albedo * Specular, 1);
-	}
 
+	if (ClosestId < 0)
+		return Miss(ray);
+	else
+		return ClosestHit(ray, ShortestDistance, ClosestId);
+		
+}
+
+Renderer::RayHitResult Renderer::ClosestHit(const Ray& ray, float distance, uint32_t ObjIdx)
+{
+	glm::vec3 LightDir{ -1.0f }, RayOrigin{ 0.0f }, SphereNormal{ 0.0f };
+	const Sphere ClosestSphere = ActiveScene->Spheres[ObjIdx];
+
+	RayHitResult hit;
+
+	hit.HitDistance = distance;
+	RayOrigin = ray.Origin - ClosestSphere.Position;
+	hit.WorldPosition = RayOrigin + ray.Direction * distance;
+	hit.WorldNormal = glm::normalize(hit.WorldPosition);
+	hit.WorldPosition += ClosestSphere.Position;
+	hit.ObjectIndex = ObjIdx;
+
+	return hit;
+}
+
+Renderer::RayHitResult Renderer::Miss(const Ray& ray)
+{
+	RayHitResult hit;
+	hit.HitDistance = -1;
+	return hit;
 }
 
 void Renderer::Render(Scene* scene, const Camera& camera)
 {
-	Ray ray;
-	ray.Origin = camera.GetPosition();
-	
+	glm::vec4 color{ 0.0f };
+
+	ActiveScene = scene;
+	ActiveCamera = &camera;
+
 	for (uint32_t y = 0; y < m_Image->GetHeight(); y++)
 	{
 		for (uint32_t x = 0; x < m_Image->GetWidth(); x++)
 		{
-			ray.Direction = camera.GetRayDirections()[x + y * m_Image->GetWidth()];
-			
-			glm::vec4 color = TraceRay(scene, ray);
+			color = OnPixel(x, y);
 			color = glm::clamp(color, glm::vec4(0.0f), glm::vec4(1.0f));
 			m_ImageData[x + y * m_Image->GetWidth()] = utils::ConvertRGBA(color);
 		}
 	}
 	m_Image->SetData(m_ImageData);
 }
+
