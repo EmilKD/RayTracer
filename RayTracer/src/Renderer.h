@@ -5,6 +5,7 @@
 #include "Walnut/Random.h"
 #include "glm/glm.hpp"
 #include<iostream>
+#include<execution>
 
 #include "Camera.h"
 #include "Ray.h"
@@ -53,5 +54,8 @@ private:
 
 	Settings settings;
 	int SampleCount{ 1 };
+
+	std::vector<uint32_t> ItrWidth, ItrHeight;
+
 };
 

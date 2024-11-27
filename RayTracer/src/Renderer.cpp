@@ -31,6 +31,14 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
 	delete[] AccumulatedData;
 	AccumulatedData = new glm::vec4[width * height];
 	AspectRatio = (float)width / (float)height;
+
+	// Initializing the itterators for pixel itteration loops
+	ItrWidth.resize(width); ItrHeight.resize(height);
+
+	for (size_t i = 0; i < width; i++)
+		ItrWidth.at(i) = i;
+	for (size_t i = 0; i < height; i++)
+		ItrHeight.at(i) = i;
 }
 
 glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
@@ -46,7 +54,7 @@ glm::vec4 Renderer::OnPixel(uint32_t x, uint32_t y)
 
 	for (size_t i = 0; i < bounces; i++)
 	{
-		Renderer::RayHitResult hit = TraceRay(ray);
+		const Renderer::RayHitResult hit = TraceRay(ray);
 
 		if (hit.HitDistance < 0.0f)
 		{
@@ -139,26 +147,52 @@ Renderer::RayHitResult Renderer::Miss(const Ray& ray)
 
 void Renderer::Render(Scene* scene, const Camera& camera)
 {
-	glm::vec4 color{ 0.0f }, AccumulatedColor;
+	glm::vec4 color{ 0.0f };
 
 	ActiveScene = scene;
 	ActiveCamera = &camera;
 
-
 	if (SampleCount == 1)
 		memset(AccumulatedData, 0, m_Image->GetWidth() * m_Image->GetHeight() * sizeof(glm::vec4));
 
+#define MT 1
+
+#if MT
+	std::for_each(std::execution::par_unseq, ItrHeight.begin(), ItrHeight.end(), [this](uint32_t y) 
+	{
+		for (uint32_t x = 0; x < m_Image->GetWidth(); x++)
+		{
+			const int idx = x + y * m_Image->GetWidth();
+			AccumulatedData[idx] += OnPixel(x, y);
+			glm::vec4 AccumulatedColor = AccumulatedData[idx] / (float)(SampleCount);
+
+			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
+			ImageData[idx] = utils::ConvertRGBA(AccumulatedColor);
+		}
+		/*std::for_each(std::execution::par_unseq, ItrWidth.begin(), ItrWidth.end(), [this, &y](uint32_t x)
+		{
+			const int& idx = x + y * m_Image->GetWidth();
+			AccumulatedData[idx] += OnPixel(x, y);
+			glm::vec4 AccumulatedColor = AccumulatedData[idx] / (float)(SampleCount);
+
+			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
+			ImageData[idx] = utils::ConvertRGBA(AccumulatedColor);
+		});*/
+	});
+#else
 	for (uint32_t y = 0; y < m_Image->GetHeight(); y++)
 	{
 		for (uint32_t x = 0; x < m_Image->GetWidth(); x++)
 		{
-			AccumulatedData[x + y * m_Image->GetWidth()] += OnPixel(x, y);
-			AccumulatedColor = AccumulatedData[x + y * m_Image->GetWidth()] / (float)(SampleCount);
+			const int idx = x + y * m_Image->GetWidth();
+			AccumulatedData[idx] += OnPixel(x, y);
+			AccumulatedColor = AccumulatedData[idx] / (float)(SampleCount);
 
 			AccumulatedColor = glm::clamp(AccumulatedColor, glm::vec4(0.0f), glm::vec4(1.0f));
-			ImageData[x + y * m_Image->GetWidth()] = utils::ConvertRGBA(AccumulatedColor);
+			ImageData[idx] = utils::ConvertRGBA(AccumulatedColor);
 		}
 	}
+#endif
 	m_Image->SetData(ImageData);
 
 	if (settings.Accumulate)
@@ -169,5 +203,6 @@ void Renderer::Render(Scene* scene, const Camera& camera)
 	{
 		SampleCount = 1;
 	}
+
 }
 
